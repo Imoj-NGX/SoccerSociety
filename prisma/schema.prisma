@@ -1,0 +1,177 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  COACH
+  MANAGER
+  PLAYER
+}
+
+enum PositionType {
+  CB //Center Back
+  RB //Right Back
+  LB //Left Back
+  LM //Left Mid
+  RM //Right Mid
+  CM //Center Mid
+  CDM //Center Defensive Mid
+  CF //Center Forward
+  LW //Left Winger
+  RW //Right Winger
+  CAM //Center Attacking Mid
+  ST //Striker
+  COACH
+  MANAGER
+  // You can add more predefined positions if needed
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  firstName String
+  lastName  String
+  email     String   @unique
+  password  String // Ensure to hash passwords before storing
+  age       Int?
+  location  String?
+  role      Role
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  coach   Coach?   @relation("CoachUser")
+  manager Manager? @relation("ManagerUser")
+  player  Player?  @relation("PlayerUser")
+
+  @@index([email])
+}
+
+model Coach {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  user      User     @relation("CoachUser", fields: [userId], references: [id])
+  team      Team?    @relation("TeamCoach")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Manager {
+  id          Int          @id @default(autoincrement())
+  userId      Int          @unique
+  user        User         @relation("ManagerUser", fields: [userId], references: [id])
+  team        Team?        @relation("TeamManager")
+  tournaments Tournament[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Player {
+  id        Int          @id @default(autoincrement())
+  userId    Int          @unique
+  user      User         @relation("PlayerUser", fields: [userId], references: [id])
+  position  PositionType
+  teamId    Int?
+  team      Team?        @relation("TeamPlayers", fields: [teamId], references: [id])
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([teamId])
+}
+
+model Team {
+  id          Int          @id @default(autoincrement())
+  name        String
+  coachId     Int?         @unique
+  coach       Coach?       @relation("TeamCoach", fields: [coachId], references: [id])
+  managerId   Int?         @unique
+  manager     Manager?     @relation("TeamManager", fields: [managerId], references: [id])
+  players     Player[]     @relation("TeamPlayers")
+  homeMatches Match[]      @relation("HomeTeam")
+  awayMatches Match[]      @relation("AwayTeam")
+  tournaments Tournament[] @relation("TeamTournaments")
+  leagues     League[]     @relation("LeagueTeams")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([coachId])
+  @@index([managerId])
+}
+
+model Tournament {
+  id        Int            @id @default(autoincrement())
+  name      String
+  location  String
+  startDate DateTime
+  endDate   DateTime
+  type      TournamentType
+  teams     Team[]         @relation("TeamTournaments")
+  matches   Match[]        @relation("TournamentMatches")
+  manager   Manager        @relation(fields: [managerId], references: [id])
+  managerId Int
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([startDate, endDate])
+}
+
+enum TournamentType {
+  COMMUNITY
+  NATIONALITY
+  COMPETITIVE
+  RECREATIONAL
+  OVER_25
+  OVER_40
+}
+
+model League {
+  id        Int        @id @default(autoincrement())
+  name      String
+  type      LeagueType
+  teams     Team[]     @relation("LeagueTeams")
+  matches   Match[]    @relation("LeagueMatches")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([name])
+}
+
+enum LeagueType {
+  Local
+  NATIONALITY
+  COMPETITIVE
+  RECREATIONAL
+  OVER_25
+  OVER_40
+}
+
+model Match {
+  id           Int         @id @default(autoincrement())
+  date         DateTime
+  homeTeamId   Int
+  awayTeamId   Int
+  leagueId     Int?
+  tournamentId Int?
+  homeTeam     Team        @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam     Team        @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  league       League?     @relation("LeagueMatches", fields: [leagueId], references: [id])
+  tournament   Tournament? @relation("TournamentMatches", fields: [tournamentId], references: [id])
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([date])
+  @@index([homeTeamId])
+  @@index([awayTeamId])
+  @@index([leagueId])
+  @@index([tournamentId])
+}
